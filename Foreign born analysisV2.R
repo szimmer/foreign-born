@@ -22,7 +22,7 @@ library(mapview)
 # https://api.census.gov/data/key_signup.html
 
 # Get census API key
-api_key <- "1f13c7503837778a90995851ea7b96d01a1262c7"
+api_key <- "Your API Key"
 census_api_key(api_key, install = TRUE)
 
 ### Data preparation 
@@ -119,8 +119,8 @@ african_countries <- c('Nigeria' ,'Ethiopia' ,'Egypt' ,'Democratic Republic of t
                        'Guinea' ,'Benin' ,'Burundi' ,'South Sudan' ,'Togo' ,'Eritrea' ,
                        'Sierra Leone' ,'Libya' ,'Republic of the Congo' ,'Central African Republic' ,
                        'Liberia' ,'Mauritania' ,'Namibia' ,'Botswana' ,'Lesotho' ,'Gambia' ,'Gabon' ,'Guinea-Bissau' ,
-                       'Mauritius' ,'Equatorial Guinea' ,'Eswatini' ,'Djibouti' ,'Réunion (France)' ,'Comoros' ,
-                       'Cabo Verde' ,'Western Sahara' ,'Mayotte' ,'São Tomé and Príncipe' ,
+                       'Mauritius' ,'Equatorial Guinea' ,'Eswatini' ,'Djibouti' ,'RÃ©union (France)' ,'Comoros' ,
+                       'Cabo Verde' ,'Western Sahara' ,'Mayotte' ,'SÃ£o TomÃ© and PrÃ­ncipe' ,
                        'Seychelles' ,'Saint Helena, Ascension and Tristan da Cunha','Other Eastern Africa','Other Middle Africa',
                        'Other Northern Africa','Other Southern Africa','Other Western Africa','Africa, n.e.c.')
 
