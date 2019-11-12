@@ -2,11 +2,11 @@
 
 # Install and load packages needed for analysis
 
-install.packages("tidyverse")
-install.packages("tidycensus")
-install.packages("tigris") # contains spatials shape files
-install.packages("sf") # manipulates geospatial data
-install.packages("mapview")
+# install.packages("tidyverse")
+# install.packages("tidycensus")
+# install.packages("tigris") # contains spatials shape files
+# install.packages("sf") # manipulates geospatial data
+# install.packages("mapview")
 
 library(tidyverse)
 library(tidycensus)
@@ -22,9 +22,9 @@ library(mapview)
 # https://api.census.gov/data/key_signup.html
 
 # Get census API key
-api_key <- "Your API Key"
-census_api_key(api_key, install = TRUE)
-
+# api_key <- "Your API Key"
+# census_api_key(api_key, install = TRUE)
+# Run the above if it's your first time using the Census API, no need to run again
 ### Data preparation 
 
 # import table variable mapping that has information about census tables
@@ -32,7 +32,7 @@ table_var <- read_csv("ACS2018_Table_Shells.csv") %>% select(-`Data Release`)
 
 # clean table_var by removing NA
 table_var_clean <- na.omit(table_var) %>% 
-  filter(str_detect(table_var_clean$Stub, "[:]", negate = TRUE))
+  filter(str_detect(Stub, "[:]", negate = TRUE))
 
 # Get data about "PLACE OF BIRTH BY NATIVITY AND CITIZENSHIP STATUS" from the census
 nativity_od <- get_acs(geography = "state", table = "B05002", survey = "acs5")
@@ -46,24 +46,34 @@ nativity2 <- left_join(nativity,table_var_clean,by="UniqueID") %>%
    select(NAME,estimate,UniqueID,Stub) %>% rename(Category=Stub, State=NAME)
 
 # Get the line number from each UniqueID ** Note that this column already existed the table_var dataset
-# str_split() splits a string at a certain character
-split_ID <- str_split(nativity2$UniqueID, "_", simplify = TRUE) 
-# Simplify: If FALSE, the default, returns a list of character vectors. If TRUE returns a character matrix
-# Since simplify = TRUE, a matrix was returned so the code below returns the second column
+# The line number is the suffix of UniqueID, separate splits this into 2 coumns
+# By specifying "convert=TRUE", the character will be converted to a number
 
-# convert ID from char to numeric using as.numeric()
-nativity2 <- nativity2 %>% mutate(ID = as.numeric(split_ID[,2])) 
+nativity2 <- nativity2 %>% 
+  separate(UniqueID, into=c("Prefix", "ID"), sep="_", remove=FALSE, convert=TRUE)
+  
 
 # Create 2 columns that contain information on nativity of the population
 nativity3 <- nativity2 %>% 
-  mutate(status=if_else(ID<=12 & ID >=2,"Native","Foreign"),
-         status_type=if_else(ID<=8 & ID >=5,"Born in the US",
-          if_else(ID<=12 & ID >=10,"Born outside of the US",
-            if_else(ID<=20 & ID >=15,"Naturalized US citizen",
-                if_else(ID<=27 & ID >=22,"Not a US citizen","NA")))))
+  mutate(
+    status=case_when(between(ID, 2, 12)~"Native",
+                     ID>12~"Foreign",
+                     ID==1~"Total"),
+    status_type=case_when(
+      between(ID, 5, 8)|ID==3~"Born in the US",
+      # ID 3 is people born in the same state
+      # See https://factfinder.census.gov/bkmk/table/1.0/en/ACS/17_5YR/B05002/0400000US06
+      between(ID, 10, 12)~"Born outside of the US",
+      between(ID, 15, 20)~"Naturalized US citizen",
+      between(ID, 22, 27)~"Not a US citizen",
+      TRUE~NA_character_
+      )
+    )
+      
 
 # delete rows where status_type=="NA" 
-nativity_final <- nativity3[!(nativity3$status_type=="NA"),]
+nativity_final <- nativity3 %>%
+  filter(!is.na(status_type))
 
 # Create summary tables
 
