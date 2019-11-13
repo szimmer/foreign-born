@@ -78,37 +78,54 @@ nativity_final <- nativity3 %>%
 # Create summary tables
 
 # 1- Total number of foreign born US citizens by state in descending order
-naturalized <- nativity_final %>% filter(status_type=="Naturalized US citizen") %>% 
+naturalized <- nativity_final %>% 
+  filter(status_type=="Naturalized US citizen") %>% 
   group_by(State) %>% 
-  summarise(total=sum(estimate)) %>% arrange(desc(total))
+  summarise(total=sum(estimate)) %>% 
+  arrange(desc(total))
+
+naturalized
 
 # CA has the largest number of foreign born US citizens. Where do they come from? 
-naturalized_ca <- nativity_final %>% filter(status_type=="Naturalized US citizen", 
-  State=="California") %>% 
+naturalized_ca <- nativity_final %>% 
+  filter(status_type=="Naturalized US citizen", State=="California") %>% 
   group_by(Category) %>% 
-  summarise(total=sum(estimate)) %>% arrange(desc(total))
+  summarise(total=sum(estimate)) %>% 
+  arrange(desc(total))
+
+naturalized_ca
 
 # The largest number of naturalized citizens in California come from Asia
 
 # 2- Proportion of immigrants by state
-perc_of_total <- nativity_final %>% group_by(State,status_type) %>% 
-  summarise(total=sum(estimate)) %>% spread(status_type,total) %>% 
+perc_of_total <- nativity_final %>% 
+  group_by(State,status_type) %>% 
+  summarise(total=sum(estimate)) %>%
+  spread(status_type,total) %>% 
   mutate(total_pop=`Born in the US`+`Born outside of the US`+`Naturalized US citizen`+`Not a US citizen`,
-         immigrant_pop=(`Naturalized US citizen`+`Not a US citizen`)/total_pop,
+         immigrant_pop=(`Naturalized US citizen`+`Not a US citizen`)/total_pop*100,
          foreignborn_pop=(`Naturalized US citizen`/total_pop)*100) %>% 
   arrange(desc(immigrant_pop))
  
-# New York has the largest number of immigrants as a % of its total population
+perc_of_total %>% select(State, immigrant_pop, foreignborn_pop)
+
+# California has the largest number of immigrants as a % of its total population
 
 # NY Foreign born residents region of origin
-NY_residents <- nativity_final %>% filter(status=="Foreign",State=="New York") %>% 
-  select(State,Category,estimate) %>% group_by(Category) %>% summarise(total=sum(estimate)) %>% 
+NY_residents <- nativity_final %>% 
+  filter(status=="Foreign",State=="New York") %>% 
+  select(State,Category,estimate) %>% 
+  group_by(Category) %>% 
+  summarise(total=sum(estimate)) %>% 
   arrange(desc(total))
 
+NY_residents
 # The largest number of immigrants in New York come from Latin America
 
 # Where do Africans live in the US?
-summary_african <- nativity_final %>% filter(Category=="Africa") %>% group_by(State) %>% 
+summary_african <- nativity_final %>% 
+  filter(Category=="Africa") %>% 
+  group_by(State) %>% 
   summarise(total=sum(estimate)) %>% 
   arrange(desc(total))
 
@@ -139,11 +156,16 @@ tx_od <- get_acs(geography = "state", state="Texas",table = "B05006", survey = "
   filter(estimate!=0) %>% rename(UniqueID = variable) %>% select(UniqueID:moe) 
 
 # Left_join tx_od to table_var_clean to get the country names, delete rows that have 'NA'
-tx_clean <- left_join(tx_od,table_var_clean,by="UniqueID") %>% na.omit() %>% 
-  select(Stub,estimate) %>% rename(country=Stub)
+tx_clean <- tx_od %>%
+  left_join(table_var_clean,by="UniqueID") %>% 
+  na.omit() %>% 
+  select(Stub,estimate) %>% 
+  rename(country=Stub)
 
 # Filter for countries that are listed in the africa_countries vector
-tx_africa <- tx_clean %>% filter(country %in% african_countries) %>% arrange(desc(estimate)) 
+tx_africa <- tx_clean %>% 
+  filter(country %in% african_countries) %>% 
+  arrange(desc(estimate)) 
 
 ggplot(head(tx_africa), aes(x=country,y = estimate)) + 
   geom_bar(stat = "identity") +
@@ -167,13 +189,21 @@ dc_region <- get_acs(geography = "tract",state="DC",
 dc_region2 <- left_join(dc_region,table_var_clean,by="UniqueID") %>% na.omit() 
 
 dc_region_final <- dc_region2 %>% 
-  mutate(status=if_else(Line<=12 & Line >=2,"Native","Foreign"),
-         status_type=if_else(Line<=8 & Line >=5,"Born in the US",
-                             if_else(Line<=12 & Line >=10,"Born outside of the US",
-                                     if_else(Line<=20 & Line >=15,"Naturalized US citizen",
-                                             if_else(Line<=27 & Line >=22,"Not a US citizen","NA")))))
+  mutate(
+    ID=Line,
+    status=case_when(between(ID, 2, 12)~"Native",
+                     ID>12~"Foreign",
+                     ID==1~"Total"),
+    status_type=case_when(
+      between(ID, 5, 8)|ID==3~"Born in the US",
+      between(ID, 10, 12)~"Born outside of the US",
+      between(ID, 15, 20)~"Naturalized US citizen",
+      between(ID, 22, 27)~"Not a US citizen",
+      TRUE~NA_character_
+    )
+  ) %>%
+  filter(!is.na(status_type))
 
-dc_region_final <- dc_region_final[!(dc_region_final$status_type=="NA"),]
 
 dc_region_final <- dc_region_final %>% filter(status=="Foreign") %>% 
   select(GEOID,NAME,Stub,estimate,geometry) %>% rename(region=Stub)
@@ -198,8 +228,11 @@ plot(dc_region_final["estimate"])
 # Areas that are colored pink:yellow imply that a large number of the immigrant population live in that area.
 
 # Distribution of immigrants in DC by region of origin
-ggplot(dc_region_final, aes(fill=estimate)) + geom_sf() +
-  scale_fill_distiller(direction = 1) +
+ggplot() + 
+  geom_sf(data = dc_boundary, color = NA, fill = "white") +
+  geom_sf(data=dc_region_final, aes(fill=estimate)) +
+  scale_fill_distiller(direction = 1, palette="Greens") +
+  geom_sf(data = dc_water, color = "lightblue", fill = "lightblue")  +
   facet_wrap(~region)
 
 # The maps show that immigrants from Asia, Europe, and Latin America tend to live near each other
